@@ -1,0 +1,461 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- สร้าง ScreenGui หลัก
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomCheatUI"
+ScreenGui.ResetOnSpawn = false
+if syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = game.CoreGui
+elseif gethui then
+    ScreenGui.Parent = gethui()
+else
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- ปุ่มเปิด/ปิด UI หลัก (สามารถลากได้)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Position = UDim2.new(0, 20, 0, 20)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleButton.BorderColor3 = Color3.fromRGB(80, 80, 80)
+ToggleButton.Text = "UI"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 18
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+ToggleButton.Parent = ScreenGui
+
+local UICornerBtn = Instance.new("UICorner")
+UICornerBtn.CornerRadius = UDim.new(0, 10)
+UICornerBtn.Parent = ToggleButton
+
+-- หน้าต่างหลัก (Main Frame)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 480, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -210)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Visible = true
+MainFrame.Parent = ScreenGui
+
+local UICornerMain = Instance.new("UICorner")
+UICornerMain.CornerRadius = UDim.new(0, 8)
+UICornerMain.Parent = MainFrame
+
+-- แถบหัวข้อ
+local TitleBar = Instance.new("TextLabel")
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleBar.Text = "  PRO MENU - CONFIG PANEL"
+TitleBar.TextColor3 = Color3.fromRGB(230, 230, 230)
+TitleBar.TextSize = 14
+TitleBar.Font = Enum.Font.SourceSansBold
+TitleBar.TextXAlignment = Enum.TextXAlignment.Left
+TitleBar.Parent = MainFrame
+
+local UICornerTitle = Instance.new("UICorner")
+UICornerTitle.CornerRadius = UDim.new(0, 8)
+UICornerTitle.Parent = TitleBar
+
+-- ฟังก์ชันเปิด/ปิด UI ด้วยปุ่มลอย
+ToggleButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- ระบบ Tab หมวดหมู่
+local TabHolder = Instance.new("Frame")
+TabHolder.Size = UDim2.new(1, 0, 0, 35)
+TabHolder.Position = UDim2.new(0, 0, 0, 35)
+TabHolder.BackgroundTransparency = 1
+TabHolder.Parent = MainFrame
+
+local ContentHolder = Instance.new("ScrollingFrame")
+ContentHolder.Size = UDim2.new(1, -10, 1, -80)
+ContentHolder.Position = UDim2.new(0, 5, 0, 75)
+ContentHolder.BackgroundTransparency = 1
+ContentHolder.CanvasSize = UDim2.new(0, 0, 0, 750)
+ContentHolder.ScrollBarThickness = 6
+ContentHolder.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Parent = ContentHolder
+
+-- ตัวแปรสถานะฟังก์ชันทั้งหมด
+local Settings = {
+    Aimbot = false,
+    AimPart = "Head", -- Head, Torso, Legs
+    AimTargetType = "Players", -- Players, NPC, Both
+    WallCheck = false,
+    TeamCheck = false,
+    FOVSize = 100,
+    Smoothness = 5,
+    RainbowFOV = false,
+    FOVFollowMouse = true,
+    
+    TPWalk = false,
+    TPWalkSpeed = 2,
+    
+    InfiniteJump = false,
+    HighJump = false,
+    HighJumpPower = 50,
+    
+    Noclip = false,
+    
+    ESP = false,
+    ESPColorRainbow = false,
+    ESPBoxType = "Box", -- Box, Full
+    ESPShowName = true
+}
+
+-- ฟังก์ชันสร้างปุ่มเปิด/ปิดพร้อมระบบเปลี่ยนสี (เขียว/แดง)
+local function CreateToggle(name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.Text = "  " .. name .. " [OFF]"
+    btn.TextColor3 = Color3.fromRGB(255, 75, 75) -- แดงตอนปิด
+    btn.TextSize = 14
+    btn.Font = Enum.Font.SourceSansSemibold
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = ContentHolder
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            btn.Text = "  " .. name .. " [ON]"
+            btn.TextColor3 = Color3.fromRGB(75, 255, 75) -- เขียวตอนเปิด
+        else
+            btn.Text = "  " .. name .. " [OFF]"
+            btn.TextColor3 = Color3.fromRGB(255, 75, 75) -- แดงตอนปิด
+        end
+        callback(state)
+    end)
+    return btn
+end
+
+-- ฟังก์ชันสร้างช่องใส่ตัวเลข (Input)
+local function CreateTextBox(name, defaultVal, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 32)
+    container.BackgroundTransparency = 1
+    container.Parent = ContentHolder
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.6, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "  " .. name
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.TextSize = 14
+    label.Font = Enum.Font.SourceSans
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.35, 0, 0.8, 0)
+    box.Position = UDim2.new(0.62, 0, 0.1, 0)
+    box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    box.Text = tostring(defaultVal)
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.TextSize = 14
+    box.Font = Enum.Font.SourceSans
+    box.Parent = container
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = box
+    
+    box.FocusLost:Connect(function()
+        local num = tonumber(box.Text)
+        if num then
+            callback(num)
+        else
+            box.Text = tostring(defaultVal)
+        end
+    end)
+end
+
+-- ฟังก์ชันสร้างปุ่มเลือกแบบหลายทาง (Multi-Option / สีขาวถ้ามีหลายอัน หรือสลับค่า)
+local function CreateSelector(name, options, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 32)
+    container.BackgroundTransparency = 1
+    container.Parent = ContentHolder
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.5, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "  " .. name
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.TextSize = 14
+    label.Font = Enum.Font.SourceSans
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local currentIndex = 1
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.45, 0, 0.8, 0)
+    btn.Position = UDim2.new(0.52, 0, 0.1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.Text = options[currentIndex]
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255) -- สีขาวตามโจทย์สำหรับปุ่มที่มีหลายฟังก์ชัน
+    btn.TextSize = 13
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Parent = container
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        currentIndex = currentIndex + 1
+        if currentIndex > #options then
+            currentIndex = 1
+        end
+        btn.Text = options[currentIndex]
+        callback(options[currentIndex])
+    end)
+end
+
+-- ==================== วางส่วนประกอบเมนูทั้งหมด ====================
+
+-- หมวดหมู่: AIMBOT SYSTEM
+CreateToggle("Aimbot Function", function(v) Settings.Aimbot = v end)
+CreateSelector("Aim Part", {"Head", "Torso", "Legs"}, function(v) Settings.AimPart = v end)
+CreateSelector("Target Type", {"Players", "NPC", "Both"}, function(v) Settings.AimTargetType = v end)
+CreateToggle("Wall Check", function(v) Settings.WallCheck = v end)
+CreateToggle("Team Check", function(v) Settings.TeamCheck = v end)
+CreateTextBox("FOV Circle Size", Settings.FOVSize, function(v) Settings.FOVSize = v end)
+CreateTextBox("Smoothness", Settings.Smoothness, function(v) Settings.Smoothness = v end)
+CreateToggle("Rainbow FOV Circle", function(v) Settings.RainbowFOV = v end)
+CreateSelector("FOV Follow Mode", {"Mouse", "Center Screen"}, function(v) 
+    Settings.FOVFollowMouse = (v == "Mouse") 
+end)
+
+-- หมวดหมู่: MOVEMENT & UTILS
+CreateToggle("TPWalk (Teleport Walk)", function(v) Settings.TPWalk = v end)
+CreateTextBox("TPWalk Speed", Settings.TPWalkSpeed, function(v) Settings.TPWalkSpeed = v end)
+
+CreateToggle("Infinite Jump", function(v) Settings.InfiniteJump = v end)
+CreateToggle("High Jump (Special Toggle)", function(v) Settings.HighJump = v end) -- เน้นมีปุ่มเปิด/ปิดกระโดดสูงตามขอ
+CreateTextBox("Jump Power Value", Settings.HighJumpPower, function(v) Settings.HighJumpPower = v end)
+
+CreateToggle("Noclip (Walk Through Walls)", function(v) Settings.Noclip = v end)
+
+-- หมวดหมู่: ESP SYSTEM
+CreateToggle("ESP Visuals", function(v) Settings.ESP = v end)
+CreateToggle("ESP Rainbow Color", function(v) Settings.ESPColorRainbow = v end)
+CreateSelector("ESP Box Style", {"Box", "Full Body"}, function(v) Settings.ESPBoxType = v end)
+CreateToggle("ESP Show Names", function(v) Settings.ESPShowName = v end)
+
+
+-- ==================== ระบบการทำงานจริง (Logic Backend) ====================
+
+-- 1. FOV Circle Drawing
+local FOVDrawing = Drawing.new("Circle")
+FOVDrawing.Visible = false
+FOVDrawing.Thickness = 2
+FOVDrawing.NumSides = 60
+FOVDrawing.Filled = false
+FOVDrawing.Transparency = 1
+
+RunService.RenderStepped:Connect(function()
+    if Settings.Aimbot then
+        FOVDrawing.Visible = true
+        FOVDrawing.Radius = Settings.FOVSize
+        if Settings.FOVFollowMouse then
+            FOVDrawing.Position = UserInputService:GetMouseLocation()
+        else
+            FOVDrawing.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        end
+        
+        if Settings.RainbowFOV then
+            FOVDrawing.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+        else
+            FOVDrawing.Color = Color3.fromRGB(255, 255, 255)
+        end
+    else
+        FOVDrawing.Visible = false
+    end
+end)
+
+-- 2. Aimbot Logic
+RunService.RenderStepped:Connect(function()
+    if not Settings.Aimbot then return end
+    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then -- กดคลิกขวาทำงาน
+        local closestTarget = nil
+        local shortestDist = Settings.FOVSize
+        local mousePos = Settings.FOVFollowMouse and UserInputService:GetMouseLocation() or Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+                    if Settings.TeamCheck and player.Team == LocalPlayer.Team then continue end
+                    
+                    local partName = "Head"
+                    if Settings.AimPart == "Torso" then partName = "HumanoidRootPart"
+                    elseif Settings.AimPart == "Legs" then partName = "RightLowerLeg" end
+                    
+                    local targetPart = character:FindFirstChild(partName) or character:FindFirstChild("Head")
+                    if targetPart then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen then
+                            local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                closestTarget = targetPart
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- รองรับ NPC (Model ทั่วไปใน Workspace ที่มี Humanoid)
+        if Settings.AimTargetType == "NPC" or Settings.AimTargetType == "Both" then
+            for _, obj in ipairs(workspace:GetChildren()) do
+                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
+                    local hum = obj.Humanoid
+                    if hum.Health > 0 then
+                        local targetPart = obj:FindFirstChild(Settings.AimPart) or obj:FindFirstChild("Head")
+                        if targetPart then
+                            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                            if onScreen then
+                                local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                                if dist < shortestDist then
+                                    shortestDist = dist
+                                    closestTarget = targetPart
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        if closestTarget then
+            local targetCF = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCF, 1 / math.max(Settings.Smoothness, 1))
+        end
+    end
+end)
+
+-- 3. TPWalk Logic
+RunService.RenderStepped:Connect(function()
+    if Settings.TPWalk and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if hum and hum.MoveDirection.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + (hum.MoveDirection * Settings.TPWalkSpeed)
+        end
+    end
+end)
+
+-- 4. Infinite Jump & High Jump Logic
+UserInputService.JumpRequest:Connect(function()
+    if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if Settings.HighJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        local hum = LocalPlayer.Character.Humanoid
+        if hum:GetState() == Enum.HumanoidStateType.Jumping then
+            LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(
+                LocalPlayer.Character.HumanoidRootPart.Velocity.X,
+                Settings.HighJumpPower,
+                LocalPlayer.Character.HumanoidRootPart.Velocity.Z
+            )
+        end
+    end
+end)
+
+-- 5. Noclip Logic
+RunService.Stepped:Connect(function()
+    if Settings.Noclip and LocalPlayer.Character then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- 6. Simple ESP System
+local ESPBoxes = {}
+RunService.RenderStepped:Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local char = player.Character
+            if Settings.ESP and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                local hrp = char.HumanoidRootPart
+                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                
+                if not ESPBoxes[player] then
+                    local box = Drawing.new("Square")
+                    box.Visible = false
+                    box.Thickness = 1.5
+                    box.Filled = false
+                    
+                    local nameTag = Drawing.new("Text")
+                    nameTag.Visible = false
+                    nameTag.Size = 14
+                    nameTag.Center = true
+                    nameTag.Outline = true
+                    nameTag.Color = Color3.fromRGB(255, 255, 255)
+                    
+                    ESPBoxes[player] = {Box = box, Name = nameTag}
+                end
+                
+                local visuals = ESPBoxes[player]
+                if onScreen then
+                    local color = Settings.ESPColorRainbow and Color3.fromHSV(tick() % 5 / 5, 1, 1) or Color3.fromRGB(255, 75, 75)
+                    visuals.Box.Color = color
+                    visuals.Box.Visible = true
+                    
+                    if Settings.ESPBoxType == "Box" then
+                        visuals.Box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
+                        visuals.Box.Position = Vector2.new(pos.X - visuals.Box.Size.X / 2, pos.Y - visuals.Box.Size.Y / 2)
+                    else
+                        visuals.Box.Size = Vector2.new(1500 / pos.Z, 4000 / pos.Z)
+                        visuals.Box.Position = Vector2.new(pos.X - visuals.Box.Size.X / 2, pos.Y - visuals.Box.Size.Y / 2)
+                    end
+                    
+                    if Settings.ESPShowName then
+                        visuals.Name.Visible = true
+                        visuals.Name.Text = player.Name
+                        visuals.Name.Position = Vector2.new(pos.X, pos.Y - (visuals.Box.Size.Y / 2) - 18)
+                    else
+                        visuals.Name.Visible = false
+                    end
+                else
+                    visuals.Box.Visible = false
+                    visuals.Name.Visible = false
+                end
+            else
+                if ESPBoxes[player] then
+                    ESPBoxes[player].Box.Visible = false
+                    ESPBoxes[player].Name.Visible = false
+                end
+            end
+        end
+    end
+end)
